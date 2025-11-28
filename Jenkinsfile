@@ -18,11 +18,11 @@ pipeline{
                     sudo systemctl enable nginx
                     sudo systemctl start nginx
                     sudo systemctl status nginx
-                    sudo chown -R root:root /var/www/html/
+                    sudo chown -R root:root /var/www/html
                     cd /var/www
                     sudo rm -rf html/
                     sudo mkdir html
-                    sudo git clone https://github.com/Ops-Smith/webapp.git ./
+                    sudo git clone https://github.com/Ops-Smith/webapp.git ./html
                     sudo systemctl restart nginx
                 '''
 
