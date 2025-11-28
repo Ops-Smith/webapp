@@ -23,7 +23,7 @@ pipeline{
                     sudo rm -rf html/
                     sudo mkdir html
                     sudo git clone https://github.com/Ops-Smith/webapp.git ./html
-                    sudo systemctl restart nginx
+                    sudo systemctl reload nginx || true
                 '''
 
             }
