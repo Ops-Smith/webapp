@@ -1,7 +1,7 @@
 pipeline{
     agent any
     triggers {
-        pollSCM('H/2 * * * *') // Check repo every 2 minutes
+        pollSCM('H/1 * * * *') // Check repo every 2 minutes
     }
     stages{
         stage("Display a greeting message"){
@@ -18,7 +18,7 @@ pipeline{
                     sudo systemctl enable nginx
                     sudo systemctl start nginx
                     sudo systemctl status nginx
-                    sudo chown -R root:root /var/www/html
+                    sudo chown -R root:root /var
                     cd /var/www
                     sudo rm -rf html/
                     sudo mkdir html
