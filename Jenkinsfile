@@ -5,7 +5,11 @@ pipeline{
     }
     stages{
         stage("Display a greeting message"){
-            echo "Hello David! This is how you deploy a static webapp on NGINX using Jenkins"
+            steps{
+                sh'''
+                    echo "Hello David! This is how you deploy a static webapp on NGINX using Jenkins"
+                '''
+            }
         }
         stage("Clone Repo and deploy using NGINX"){
             steps{
