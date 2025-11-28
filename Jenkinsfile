@@ -18,7 +18,7 @@ pipeline{
                     sudo systemctl enable nginx
                     sudo systemctl start nginx
                     sudo systemctl status nginx
-                    sudo chown -R root:root /var
+                    sudo chown -R root:root /var/www/html
                     cd /var/www
                     sudo rm -rf html/
                     sudo mkdir html
