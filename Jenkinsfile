@@ -1,37 +1,53 @@
-pipeline{
+pipeline {
     agent any
     triggers {
-        pollSCM('H/1 * * * *') // Check repo every 2 minutes
+        githubPush()
     }
-    stages{
-        stage("Display a greeting message"){
-            steps{
-                sh'''
-                    echo "Hello David! This is how you deploy a static webapp on NGINX using Jenkins"
+    stages {
+        stage('Display Greeting') {
+            steps {
+                echo "🚀 Deploying to PRODUCTION"
+                sh '''
+                    echo "Hello David! Deploying static webapp to NGINX"
                 '''
             }
         }
-        stage("Clone Repo and deploy using NGINX"){
-            steps{
-                sh'''
-                    sudo apt update
-                    sudo systemctl enable nginx
-                    sudo systemctl start nginx
-                    sudo systemctl status nginx
-                    sudo chown -R root:root /var/www/html
-                    cd /var/www
-                    sudo rm -rf html/
-                    sudo mkdir html
-                    sudo git clone https://github.com/Ops-Smith/webapp.git ./html
-                    sudo systemctl reload nginx || true
+        stage('Deploy to NGINX') {
+            steps {
+                sh '''
+                    # Ensure NGINX is running
+                    sudo systemctl start nginx || true
+                    
+                    # Clean web directory
+                    sudo rm -rf /var/www/html/*
+                    
+                    # Clone latest code
+                    sudo git clone https://github.com/Ops-Smith/webapp.git /var/www/html
+                    
+                    # Set proper permissions
+                    sudo chown -R www-data:www-data /var/www/html
+                    
+                    # Reload NGINX
+                    sudo systemctl reload nginx
+                    echo "✅ Production site deployed!"
                 '''
-
+            }
+        }
+        stage('Verify') {
+            steps {
+                sh '''
+                    echo "Testing website..."
+                    curl -f http://localhost && echo "✅ Site is live!" || echo "⚠️ Site check failed"
+                '''
             }
         }
     }
-    post{
-        success{
-            echo "Deployment successful! Visit http://localhost"
+    post {
+        success {
+            echo "🎉 Deployment successful! Visit: http://localhost"
+        }
+        failure {
+            echo "❌ Deployment failed"
         }
     }
 }
