@@ -37,7 +37,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Testing website..."
-                    curl -f http://localhost && echo "✅ Site is live!" || echo "⚠️ Site check failed"
+                    curl -f http://localhost && echo "✅ Site is live!" || echo "⚠️ Site check failed. Check"
                 '''
             }
         }
