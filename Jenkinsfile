@@ -21,6 +21,9 @@ pipeline {
                     # Change directory
                     cd /var/www
 
+                    # Clear html directory
+                    sudo rm -rf html
+
                     # Create new directory
                     sudo mkdir html
                     
