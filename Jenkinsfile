@@ -18,11 +18,14 @@ pipeline {
                     # Ensure NGINX is running
                     sudo systemctl start nginx || true
                     
-                    # Clean web directory
-                    sudo rm -rf /var/www/html/*
+                    # Change directory
+                    cd /var/www
+
+                    # Create new directory
+                    sudo mkdir html
                     
                     # Clone latest code
-                    sudo git clone https://github.com/Ops-Smith/webapp.git /var/www/html
+                    sudo git clone https://github.com/Ops-Smith/webapp.git ./html
                     
                     # Set proper permissions
                     sudo chown -R www-data:www-data /var/www/html
