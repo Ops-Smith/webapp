@@ -24,7 +24,7 @@ pipeline {
                     # Clear html directory
                     sudo rm -rf html
 
-                    # Create new directory
+                    # Create new directory inside
                     sudo mkdir html
                     
                     # Clone latest code
