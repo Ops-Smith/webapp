@@ -134,21 +134,21 @@ pipeline {
         success {
             echo "🎉 Deployment successful! Visit: http://localhost:800"
 
-            sh """
+            sh '''
             curl -X POST -H 'Content-type: application/json' \
             --data '{"text": "✅ *Deployment SUCCESSFUL* for Static Webapp\n*Build:* #${BUILD_NUMBER}\n*Server:* http://localhost:800"}' \
             "$SLACK_WEBHOOK"
-            """
+            '''
         }
 
         failure {
             echo "❌ Deployment failed"
 
-            sh """
+            sh '''
             curl -X POST -H 'Content-type: application/json' \
             --data '{"text": "❌ *Deployment FAILED* for Static Webapp\n*Build:* #${BUILD_NUMBER}\nCheck Jenkins logs for details."}' \
             "$SLACK_WEBHOOK"
-            """
+            '''
         }
     }
 }
