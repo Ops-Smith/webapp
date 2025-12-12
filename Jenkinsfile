@@ -35,7 +35,7 @@ pipeline {
                             docker rm webapp-nginx || true
                         fi
 
-                        docker run -d --name webapp-nginx -p 80:80 \
+                        docker run -d --name webapp-nginx -p 801:80 \
                         --restart unless-stopped webapp-image:${BUILD_ID}
                     '''
                 }
