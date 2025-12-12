@@ -46,7 +46,7 @@ pipeline {
             steps {
                 sh '''
                     echo "Testing site..."
-                    curl -f http://localhost:800 \
+                    curl -f http://localhost:810 \
                     && echo "✅ Site is live!" \
                     || (echo "⚠️ Site check failed." && exit 1)
                 '''
@@ -62,7 +62,7 @@ pipeline {
             sh '''
 payload=$(cat <<EOF
 {
-  "text": "✅ *Deployment SUCCESSFUL* for Static Webapp\\n*Build:* #${BUILD_NUMBER}\\n*Server:* http://localhost:800"
+  "text": "✅ *Deployment SUCCESSFUL* for Static Webapp\\n*Build:* #${BUILD_NUMBER}\\n*Server:* http://localhost:810"
 }
 EOF
 )
