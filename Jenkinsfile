@@ -6,8 +6,7 @@ pipeline {
     }
 
     environment {
-        // Slack webhook stored securely in Jenkins Credentials
-        // Do NOT use the secret outside withCredentials()
+        SLACK_WEBHOOK = credentials('slack-webhook')
     }
 
     stages {
@@ -36,7 +35,7 @@ pipeline {
                             docker rm webapp-nginx || true
                         fi
 
-                        docker run -d --name webapp-nginx -p 80:80 \
+                        docker run -d --name webapp-nginx -p 800:80 \
                         --restart unless-stopped webapp-image:${BUILD_ID}
                     '''
                 }
@@ -54,31 +53,26 @@ pipeline {
     }
 
     post {
-
         success {
             echo "🎉 Deployment successful! Visit: http://localhost"
 
-            // SAFE + SECURE Slack Notification
-            withCredentials([string(credentialsId: 'slack-webhook', variable: 'WEBHOOK')]) {
-                sh '''
-                    curl -X POST -H "Content-type: application/json" \
-                    --data "{\\"text\\": \\"✅ *Deployment SUCCESSFUL* for Static Webapp\\\\n*Build:* #${BUILD_NUMBER}\\\\n*Server:* http://localhost\\"}" \
-                    "$WEBHOOK" > /dev/null 2>&1 || true
-                '''
-            }
+            sh """
+            curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": "✅ *Deployment SUCCESSFUL* for Static Webapp\n*Build:* #${env.BUILD_NUMBER}\n*Server:* http://localhost"
+            }' $SLACK_WEBHOOK
+            """
         }
 
         failure {
             echo "❌ Deployment failed"
 
-            // SAFE + SECURE Slack Notification
-            withCredentials([string(credentialsId: 'slack-webhook', variable: 'WEBHOOK')]) {
-                sh '''
-                    curl -X POST -H "Content-type: application/json" \
-                    --data "{\\"text\\": \\"❌ *Deployment FAILED* for Static Webapp\\\\n*Build:* #${BUILD_NUMBER}\\\\nCheck Jenkins logs for details.\\"}" \
-                    "$WEBHOOK" > /dev/null 2>&1 || true
-                '''
-            }
+            sh """
+            curl -X POST -H 'Content-type: application/json' \
+            --data '{
+              "text": "❌ *Deployment FAILED* for Static Webapp\n*Build:* #${env.BUILD_NUMBER}\nCheck Jenkins logs for details."
+            }' $SLACK_WEBHOOK
+            """
         }
     }
 }
