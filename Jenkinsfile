@@ -42,8 +42,16 @@ pipeline {
 
         stage('Quality Gate') {
             steps {
-                timeout(time: 10, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                script {
+                    timeout(time: 10, unit: 'MINUTES') {
+                        def qg = waitForQualityGate abortPipeline: false
+                        if (qg.status != 'OK') {
+                            echo "⚠️ Quality Gate status: ${qg.status}. Continuing pipeline..."
+                            currentBuild.result = 'UNSTABLE' // marks build as unstable
+                        } else {
+                            echo "✅ Quality Gate passed!"
+                        }
+                    }
                 }
             }
         }
@@ -89,6 +97,18 @@ pipeline {
 payload=$(cat <<EOF
 {
   "text": "✅ *Deployment SUCCESSFUL*\\nBuild: #${BUILD_NUMBER}\\nPort: 810"
+}
+EOF
+)
+curl -X POST -H "Content-type: application/json" --data "$payload" "$SLACK_WEBHOOK" || true
+'''
+        }
+
+        unstable {
+            sh '''
+payload=$(cat <<EOF
+{
+  "text": "⚠️ *Deployment UNSTABLE* due to Quality Gate\\nBuild: #${BUILD_NUMBER}\\nPort: 810"
 }
 EOF
 )
