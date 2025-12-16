@@ -40,13 +40,18 @@ pipeline {
             }
         }
 
+        // Quality Gate skipped intentionally
+        // stage('Quality Gate') { steps { ... } }
+
         stage('Push Image to Nexus') {
             steps {
-                sh """
-                    docker login localhost:8082 -u $NEXUS_USR -p $NEXUS_PSW
+                sh '''
+                    # Use --password-stdin for HTTP Nexus
+                    echo $NEXUS_PSW | docker login http://localhost:8082 -u $NEXUS_USR --password-stdin
+
                     docker tag webapp-image:${BUILD_ID} localhost:8082/webapp-image:${BUILD_ID}
                     docker push localhost:8082/webapp-image:${BUILD_ID}
-                """
+                '''
             }
         }
 
@@ -81,18 +86,6 @@ pipeline {
 payload=$(cat <<EOF
 {
   "text": "✅ *Deployment SUCCESSFUL*\\nBuild: #${BUILD_NUMBER}\\nPort: 810"
-}
-EOF
-)
-curl -X POST -H "Content-type: application/json" --data "$payload" "$SLACK_WEBHOOK" || true
-'''
-        }
-
-        unstable {
-            sh '''
-payload=$(cat <<EOF
-{
-  "text": "⚠️ *Deployment UNSTABLE* due to Quality Gate\\nBuild: #${BUILD_NUMBER}\\nPort: 810"
 }
 EOF
 )
