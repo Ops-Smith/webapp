@@ -7,6 +7,8 @@ pipeline {
 
     environment {
         SLACK_WEBHOOK = credentials('slack-webhook')
+        SONAR_TOKEN   = credentials('sonarqube-token')
+        NEXUS         = credentials('nexus-creds')
     }
 
     stages {
@@ -20,47 +22,39 @@ pipeline {
         }
 
         stage('SonarQube Analysis') {
-            environment {
-                SONAR_TOKEN = credentials('sonarqube-token')
-            }
             steps {
-                withSonarQubeEnv('sonar') { // Use the name you configured in Jenkins
-                    sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=webapp \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=http://localhost:9000 \
-                          -Dsonar.login=$SONAR_TOKEN
-                    '''
+                script {
+                    // Use Jenkins-managed SonarQube Scanner
+                    def scannerHome = tool name: 'sonar-scanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+
+                    withSonarQubeEnv('sonar') {
+                        sh """
+                            $scannerHome/bin/sonar-scanner \
+                                -Dsonar.projectKey=webapp \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=$SONAR_HOST_URL \
+                                -Dsonar.login=$SONAR_TOKEN
+                        """
+                    }
                 }
             }
         }
 
         stage('Quality Gate') {
             steps {
-                script {
-                    // Wait up to 10 minutes for Quality Gate to complete
-                    timeout(time: 10, unit: 'MINUTES') {
-                        def qg = waitForQualityGate()
-                        if (qg.status != 'OK') {
-                            error "Quality Gate failed: ${qg.status}"
-                        }
-                    }
+                timeout(time: 10, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
                 }
             }
         }
 
         stage('Push Image to Nexus') {
-            environment {
-                NEXUS = credentials('nexus-creds')
-            }
             steps {
-                sh '''
+                sh """
                     docker login localhost:8082 -u $NEXUS_USR -p $NEXUS_PSW
-
                     docker tag webapp-image:${BUILD_ID} localhost:8082/webapp-image:${BUILD_ID}
                     docker push localhost:8082/webapp-image:${BUILD_ID}
-                '''
+                """
             }
         }
 
@@ -73,7 +67,7 @@ pipeline {
                     fi
 
                     docker run -d --name webapp-nginx -p 810:80 \
-                    --restart unless-stopped webapp-image:${BUILD_ID}
+                        --restart unless-stopped webapp-image:${BUILD_ID}
                 '''
             }
         }
@@ -90,7 +84,6 @@ pipeline {
     }
 
     post {
-
         success {
             sh '''
 payload=$(cat <<EOF
