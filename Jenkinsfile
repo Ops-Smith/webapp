@@ -40,21 +40,21 @@ pipeline {
             }
         }
 
-        // Quality Gate skipped intentionally
-        // stage('Quality Gate') { steps { ... } }
-
+        // Removed Quality Gate blocking stage to prevent pipeline abortion
         stage('Push Image to Nexus') {
             steps {
                 sh """
-                    echo "$NEXUS_PSW" | docker login http://localhost:8081 -u $NEXUS_USR --password-stdin
-
+                    # Login to Nexus Docker repo using HTTP connector
+                    echo $NEXUS_PSW | docker login http://localhost:8081 -u $NEXUS_USR --password-stdin
+                    
+                    # Tag the image with repository path-based routing
                     docker tag webapp-image:${BUILD_ID} localhost:8081/docker-hosted/webapp-image:${BUILD_ID}
-
+                    
+                    # Push to Nexus
                     docker push localhost:8081/docker-hosted/webapp-image:${BUILD_ID}
                 """
             }
         }
-
 
         stage('Deploy Dockerized NGINX') {
             steps {
