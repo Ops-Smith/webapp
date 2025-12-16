@@ -33,8 +33,7 @@ pipeline {
                                 -Dsonar.projectKey=webapp \
                                 -Dsonar.sources=. \
                                 -Dsonar.host.url=$SONAR_HOST_URL \
-                                -Dsonar.login=$SONAR_TOKEN \
-                                -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+                                -Dsonar.login=$SONAR_TOKEN
                         """
                     }
                 }
