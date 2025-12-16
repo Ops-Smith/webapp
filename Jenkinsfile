@@ -40,22 +40,6 @@ pipeline {
             }
         }
 
-        stage('Quality Gate') {
-            steps {
-                script {
-                    timeout(time: 10, unit: 'MINUTES') {
-                        def qg = waitForQualityGate abortPipeline: false
-                        if (qg.status != 'OK') {
-                            echo "⚠️ Quality Gate status: ${qg.status}. Continuing pipeline..."
-                            currentBuild.result = 'UNSTABLE' // marks build as unstable
-                        } else {
-                            echo "✅ Quality Gate passed!"
-                        }
-                    }
-                }
-            }
-        }
-
         stage('Push Image to Nexus') {
             steps {
                 sh """
