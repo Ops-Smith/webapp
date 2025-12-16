@@ -45,15 +45,16 @@ pipeline {
 
         stage('Push Image to Nexus') {
             steps {
-                sh '''
-                    # Use --password-stdin for HTTP Nexus
-                    echo $NEXUS_PSW | docker login http://localhost:8082 -u $NEXUS_USR --password-stdin
+                sh """
+                    echo "$NEXUS_PSW" | docker login http://localhost:8081 -u $NEXUS_USR --password-stdin
 
-                    docker tag webapp-image:${BUILD_ID} localhost:8082/webapp-image:${BUILD_ID}
-                    docker push localhost:8082/webapp-image:${BUILD_ID}
-                '''
+                    docker tag webapp-image:${BUILD_ID} localhost:8081/docker-hosted/webapp-image:${BUILD_ID}
+
+                    docker push localhost:8081/docker-hosted/webapp-image:${BUILD_ID}
+                """
             }
         }
+
 
         stage('Deploy Dockerized NGINX') {
             steps {
