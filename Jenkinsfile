@@ -14,77 +14,88 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    def dockerImage = docker.build("webapp-image:${env.BUILD_ID}")
+                    docker.build("webapp-image:${BUILD_ID}")
                 }
             }
         }
 
-        stage('Display Greeting') {
+        stage('SonarQube Analysis') {
             steps {
-                echo "🚀 Deploying to PRODUCTION"
-                sh 'echo "Hello David! Deploying static webapp via Docker NGINX"'
+                withSonarQubeEnv('sonarqube-local') {
+                    sh '''
+                      sonar-scanner \
+                        -Dsonar.projectKey=webapp \
+                        -Dsonar.sources=.
+                    '''
+                }
+            }
+        }
+
+        stage('Quality Gate') {
+            steps {
+                timeout(time: 3, unit: 'MINUTES') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+        stage('Push Image to Nexus') {
+            environment {
+                NEXUS = credentials('nexus-creds')
+            }
+            steps {
+                sh '''
+                  docker login localhost:8082 \
+                    -u $NEXUS_USR \
+                    -p $NEXUS_PSW
+
+                  docker tag webapp-image:${BUILD_ID} \
+                    localhost:8082/webapp-image:${BUILD_ID}
+
+                  docker push localhost:8082/webapp-image:${BUILD_ID}
+                '''
             }
         }
 
         stage('Deploy Dockerized NGINX') {
             steps {
-                script {
-                    sh '''
-                        if docker ps -a --format '{{.Names}}' | grep -q "^webapp-nginx$"; then
-                            docker stop webapp-nginx || true
-                            docker rm webapp-nginx || true
-                        fi
+                sh '''
+                  docker rm -f webapp-nginx || true
 
-                        docker run -d --name webapp-nginx -p 810:80 \
-                        --restart unless-stopped webapp-image:${BUILD_ID}
-                    '''
-                }
+                  docker run -d \
+                    --name webapp-nginx \
+                    -p 810:80 \
+                    --restart unless-stopped \
+                    localhost:8082/webapp-image:${BUILD_ID}
+                '''
             }
         }
 
         stage('Verify') {
             steps {
                 sh '''
-                    echo "Testing site..."
-                    curl -f http://localhost:810 \
-                    && echo "✅ Site is live!" \
-                    || (echo "⚠️ Site check failed." && exit 1)
+                  curl -f http://localhost:810 \
+                  && echo "✅ App is running" \
+                  || exit 1
                 '''
             }
         }
     }
 
     post {
-
         success {
-            echo "🎉 Deployment successful!"
-
             sh '''
-payload=$(cat <<EOF
-{
-  "text": "✅ *Deployment SUCCESSFUL* for Static Webapp\\n*Build:* #${BUILD_NUMBER}\\n*Server:* http://localhost:810"
-}
-EOF
-)
-
 curl -X POST -H "Content-type: application/json" \
---data "$payload" "$SLACK_WEBHOOK" || true
+--data "{\"text\":\"✅ Deployment SUCCESSFUL\\nBuild #${BUILD_NUMBER}\"}" \
+"$SLACK_WEBHOOK" || true
 '''
         }
 
         failure {
-            echo "❌ Deployment failed"
-
             sh '''
-payload=$(cat <<EOF
-{
-  "text": "❌ *Deployment FAILED* for Static Webapp\\n*Build:* #${BUILD_NUMBER}\\nCheck Jenkins logs for details."
-}
-EOF
-)
-
 curl -X POST -H "Content-type: application/json" \
---data "$payload" "$SLACK_WEBHOOK" || true
+--data "{\"text\":\"❌ Deployment FAILED\\nBuild #${BUILD_NUMBER}\"}" \
+"$SLACK_WEBHOOK" || true
 '''
         }
     }
