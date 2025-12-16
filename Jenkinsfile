@@ -63,7 +63,7 @@ pipeline {
                         docker rm webapp-nginx || true
                     fi
 
-                    docker run -d --name webapp-nginx -p 800:80 \
+                    docker run -d --name webapp-nginx -p 810:80 \
                         --restart unless-stopped webapp-image:${BUILD_ID}
                 '''
             }
@@ -72,7 +72,7 @@ pipeline {
         stage('Verify Deployment') {
             steps {
                 sh '''
-                    curl -f http://localhost:800 \
+                    curl -f http://localhost:810 \
                     && echo "✅ Site is live!" \
                     || (echo "⚠️ Site check failed." && exit 1)
                 '''
@@ -85,7 +85,7 @@ pipeline {
             sh '''
 payload=$(cat <<EOF
 {
-  "text": "✅ *Deployment SUCCESSFUL*\\nBuild: #${BUILD_NUMBER}\\nPort: 800"
+  "text": "✅ *Deployment SUCCESSFUL*\\nBuild: #${BUILD_NUMBER}\\nPort: 810"
 }
 EOF
 )
