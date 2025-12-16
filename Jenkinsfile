@@ -8,7 +8,6 @@ pipeline {
     environment {
         SLACK_WEBHOOK = credentials('slack-webhook')
         SONAR_TOKEN   = credentials('sonarqube-token')
-        NEXUS         = credentials('nexus-creds')
     }
 
     stages {
@@ -24,17 +23,18 @@ pipeline {
         stage('SonarQube Analysis') {
             steps {
                 script {
-                    // Use Jenkins-managed SonarQube Scanner
                     def scannerHome = tool name: 'sonar-scanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
 
                     withSonarQubeEnv('sonar') {
-                        sh """
-                            $scannerHome/bin/sonar-scanner \
-                                -Dsonar.projectKey=webapp \
-                                -Dsonar.sources=. \
-                                -Dsonar.host.url=$SONAR_HOST_URL \
-                                -Dsonar.login=$SONAR_TOKEN
-                        """
+                        withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                            sh """\
+                                $scannerHome/bin/sonar-scanner \
+                                    -Dsonar.projectKey=webapp \
+                                    -Dsonar.sources=. \
+                                    -Dsonar.host.url=$SONAR_HOST_URL \
+                                    -Dsonar.login=\$SONAR_TOKEN
+                            """
+                        }
                     }
                 }
             }
@@ -42,11 +42,16 @@ pipeline {
 
         stage('Push Image to Nexus') {
             steps {
-                sh """
-                    echo $NEXUS_PSW | docker login http://localhost:8081 -u $NEXUS_USR --password-stdin
-                    docker tag webapp-image:${BUILD_ID} localhost:8081/docker-hosted/webapp-image:${BUILD_ID}
-                    docker push localhost:8081/docker-hosted/webapp-image:${BUILD_ID}
-                """
+                script {
+                    // Securely inject Nexus credentials
+                    withCredentials([usernamePassword(credentialsId: 'nexus-creds', usernameVariable: 'NEXUS_USR', passwordVariable: 'NEXUS_PSW')]) {
+                        sh """\
+                            echo \$NEXUS_PSW | docker login http://localhost:8081 -u \$NEXUS_USR --password-stdin
+                            docker tag webapp-image:\${BUILD_ID} localhost:8081/docker-hosted/webapp-image:\${BUILD_ID}
+                            docker push localhost:8081/docker-hosted/webapp-image:\${BUILD_ID}
+                        """
+                    }
+                }
             }
         }
 
