@@ -7,6 +7,8 @@ pipeline {
 
     environment {
         SLACK_WEBHOOK = credentials('slack-webhook')
+        SONAR_TOKEN   = credentials('sonarqube-token')
+        NEXUS         = credentials('nexus-creds')
     }
 
     stages {
@@ -14,69 +16,69 @@ pipeline {
         stage('Build Docker Image') {
             steps {
                 script {
-                    docker.build("webapp-image:${BUILD_ID}")
+                    def dockerImage = docker.build("webapp-image:${env.BUILD_ID}")
                 }
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
-                withSonarQubeEnv('sonar') {
-                    sh '''
-                      sonar-scanner \
-                        -Dsonar.projectKey=webapp \
-                        -Dsonar.sources=.
-                    '''
+                script {
+                    // Use Jenkins-managed SonarQube Scanner
+                    def scannerHome = tool name: 'sonar-scanner', type: 'hudson.plugins.sonar.SonarRunnerInstallation'
+
+                    withSonarQubeEnv('sonar') {
+                        sh """
+                            $scannerHome/bin/sonar-scanner \
+                                -Dsonar.projectKey=webapp \
+                                -Dsonar.sources=. \
+                                -Dsonar.host.url=$SONAR_HOST_URL \
+                                -Dsonar.login=$SONAR_TOKEN \
+                                -e SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+                        """
+                    }
                 }
             }
         }
 
         stage('Quality Gate') {
             steps {
-                timeout(time: 3, unit: 'MINUTES') {
+                timeout(time: 5, unit: 'MINUTES') {
                     waitForQualityGate abortPipeline: true
                 }
             }
         }
 
         stage('Push Image to Nexus') {
-            environment {
-                NEXUS = credentials('nexus-creds')
-            }
             steps {
-                sh '''
-                  docker login localhost:8082 \
-                    -u $NEXUS_USR \
-                    -p $NEXUS_PSW
-
-                  docker tag webapp-image:${BUILD_ID} \
-                    localhost:8082/webapp-image:${BUILD_ID}
-
-                  docker push localhost:8082/webapp-image:${BUILD_ID}
-                '''
+                sh """
+                    docker login localhost:8082 -u $NEXUS_USR -p $NEXUS_PSW
+                    docker tag webapp-image:${BUILD_ID} localhost:8082/webapp-image:${BUILD_ID}
+                    docker push localhost:8082/webapp-image:${BUILD_ID}
+                """
             }
         }
 
         stage('Deploy Dockerized NGINX') {
             steps {
                 sh '''
-                  docker rm -f webapp-nginx || true
+                    if docker ps -a --format '{{.Names}}' | grep -q "^webapp-nginx$"; then
+                        docker stop webapp-nginx || true
+                        docker rm webapp-nginx || true
+                    fi
 
-                  docker run -d \
-                    --name webapp-nginx \
-                    -p 810:80 \
-                    --restart unless-stopped \
-                    localhost:8082/webapp-image:${BUILD_ID}
+                    docker run -d --name webapp-nginx -p 810:80 \
+                        --restart unless-stopped webapp-image:${BUILD_ID}
                 '''
             }
         }
 
-        stage('Verify') {
+        stage('Verify Deployment') {
             steps {
                 sh '''
-                  curl -f http://localhost:810 \
-                  && echo "✅ App is running" \
-                  || exit 1
+                    curl -f http://localhost:810 \
+                    && echo "✅ Site is live!" \
+                    || (echo "⚠️ Site check failed." && exit 1)
                 '''
             }
         }
@@ -85,17 +87,25 @@ pipeline {
     post {
         success {
             sh '''
-curl -X POST -H "Content-type: application/json" \
---data "{\"text\":\"✅ Deployment SUCCESSFUL\\nBuild #${BUILD_NUMBER}\"}" \
-"$SLACK_WEBHOOK" || true
+payload=$(cat <<EOF
+{
+  "text": "✅ *Deployment SUCCESSFUL*\\nBuild: #${BUILD_NUMBER}\\nPort: 810"
+}
+EOF
+)
+curl -X POST -H "Content-type: application/json" --data "$payload" "$SLACK_WEBHOOK" || true
 '''
         }
 
         failure {
             sh '''
-curl -X POST -H "Content-type: application/json" \
---data "{\"text\":\"❌ Deployment FAILED\\nBuild #${BUILD_NUMBER}\"}" \
-"$SLACK_WEBHOOK" || true
+payload=$(cat <<EOF
+{
+  "text": "❌ *Deployment FAILED*\\nBuild: #${BUILD_NUMBER}"
+}
+EOF
+)
+curl -X POST -H "Content-type: application/json" --data "$payload" "$SLACK_WEBHOOK" || true
 '''
         }
     }
